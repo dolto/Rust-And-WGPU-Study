@@ -1,5 +1,3 @@
-mod common;
-
 use std::{iter, mem};
 
 use bytemuck::{Pod, Zeroable};
