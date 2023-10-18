@@ -11,6 +11,7 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 use bytemuck:: {Pod, Zeroable, cast_slice};
+use noise::{Perlin, NoiseFn};
 
 const IS_PERSPECTIVE:bool = true;
 const ANIMATION_SPEED:f32 = 1.0;
@@ -33,23 +34,33 @@ impl Vertex {
     }
 }
 
-fn vertex(p:[i8;3], c:[i8; 3]) -> Vertex {
+fn vertex(p:[i8;3], c:[i8; 3], dt:f32) -> Vertex {
     //포지션과 컬러는 본래 실수형이기 때문에 받은 데이터를 변환시켜줘야함
-    let mut rng = rand::thread_rng();
-    let random_vector:[f32; 4] = [rng.gen_range(-0.02..0.02), rng.gen_range(-0.02..0.02), rng.gen_range(-0.02..0.02),0.0];
+    // let mut rng = rand::thread_rng();
+    // let random_vector:[f32; 4] = [rng.gen_range(-0.02..0.02), rng.gen_range(-0.02..0.02), rng.gen_range(-0.02..0.02),0.0];
+    let perlin = Perlin::new(1);
+    let dt = dt as f64;
+    // println!("perlin1: {}", perlin.get([p[0] as f64, dt]));
+    // println!("perlin2: {}", perlin.get([p[1] as f64, dt]));
+    // println!("perlin3: {}", perlin.get([p[2] as f64, dt]));
+    let noise = [
+        perlin.get([p[0] as f64, dt]) as f32 * 0.2, 
+        perlin.get([p[1] as f64, dt]) as f32 * 0.2, 
+        perlin.get([p[2] as f64, dt]) as f32 * 0.2, 
+        perlin.get([p[2] as f64, dt]) as f32 * 0.1];
     Vertex {
         position: [p[0] as f32, p[1] as f32, p[2] as f32, 1.0], 
         color: [c[0] as f32, c[1] as f32, c[2] as f32, 1.0],
-        random: random_vector
+        random: noise
     }
 }
 
-fn create_vertices() -> Vec<Vertex> {
+fn create_vertices(dt: f32) -> Vec<Vertex> {
     let pos = vertex_data::cube_positions();
     let col = vertex_data::cube_colors();
     let mut data:Vec<Vertex> = Vec::with_capacity(pos.len());
     for i in 0..pos.len() {
-        data.push(vertex(pos[i], col[i]));
+        data.push(vertex(pos[i], col[i], dt * i as f32));
     }
     data.to_vec()
 }
@@ -143,10 +154,11 @@ impl State {
                 })],
             }),
             primitive: wgpu::PrimitiveState{
-                //topology: wgpu::PrimitiveTopology::TriangleList,
-                topology: wgpu::PrimitiveTopology::TriangleStrip,
+                //topology: wgpu::PrimitiveTopology::LineStrip,
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                //topology: wgpu::PrimitiveTopology::TriangleStrip,
                 strip_index_format: None,
-                //cull_mode: Some(wgpu::Face::Back),
+                cull_mode: Some(wgpu::Face::Back),
                 ..Default::default()
             },
             //depth_stencil: None,
@@ -163,7 +175,7 @@ impl State {
 
         let vertex_buffer = init.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: cast_slice(&create_vertices()),
+            contents: cast_slice(&create_vertices(0.0)),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
@@ -207,13 +219,11 @@ impl State {
         let mvp_mat = self.project_mat * self.view_mat * model_mat;
         let mvp_ref:&[f32; 16] = mvp_mat.as_ref();
 
-        if dt % 0.4 < 0.1{
-            self.vertex_buffer = self.init.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Vertex Buffer"),
-                contents: cast_slice(&create_vertices()),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
-        }
+        self.vertex_buffer = self.init.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: cast_slice(&create_vertices(dt * 0.1)),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
         
         self.init.queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(mvp_ref));
     }
