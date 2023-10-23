@@ -1,10 +1,10 @@
 use std::default;
 
-use wgpu::Surface;
+use wgpu::{Surface, TextureFormat, SurfaceConfiguration, Queue, Device};
 use winit::{window::{WindowBuilder, Window}, event_loop::ControlFlow, event::{Event, WindowEvent}};
 
-pub fn start_window<'a>()
--> (&'a Window, &'a wgpu::Instance, &'a Surface){
+pub fn start_window()
+-> (Window, wgpu::Instance, Surface){
     //윈도우 생성하는 기본적인 함수
     let event_loop = winit::event_loop::EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
@@ -33,10 +33,11 @@ pub fn start_window<'a>()
         }
     });
 
-    return (&window, &instance, &surface);
+    return (window, instance, surface);
 }
 
-pub async fn set_device(window: &Window, instance: &wgpu::Instance, surface: &Surface){
+pub fn set_device(window: &Window, instance: &wgpu::Instance, surface: &Surface)
+-> (SurfaceConfiguration, Device, Queue){
     let adapter = futures::executor::block_on(
         instance.request_adapter(
             &wgpu::RequestAdapterOptions{
@@ -45,10 +46,34 @@ pub async fn set_device(window: &Window, instance: &wgpu::Instance, surface: &Su
                 force_fallback_adapter: false,
             },
         )
-    )
-    .unwrap();
+    ).unwrap();
+    // device: 그래픽이나 컴퓨팅 장치에 대한 연결
+    // queue: 장치의 명령 대기열을 처리함
+    let (device, queue) = futures::executor::block_on(
+        adapter.request_device(
+            &wgpu::DeviceDescriptor {
+                label: None,
+                features: wgpu::Features::empty(),
+                limits: wgpu::Limits::default(),
+            }, 
+        None)
+    ).unwrap();
+    
+    let surface_caps = surface.get_capabilities(&adapter);
+    let format = surface_caps.formats[0]; //기본적으로 0번째가 맞음
+
+    let size = window.inner_size();
+    let config = wgpu::SurfaceConfiguration {
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+        format,
+        width: size.width,
+        height: size.height,
+        present_mode: wgpu::PresentMode::Fifo,
+        alpha_mode: surface_caps.alpha_modes[0],
+        view_formats: vec![]
+    };
+    surface.configure(&device, &config);
+
+    (config, device, queue)
 }
 
-struct State {
-    
-}
