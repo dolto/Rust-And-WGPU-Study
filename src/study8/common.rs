@@ -117,14 +117,15 @@ impl State {
         let look_direction = (0.0,0.0,0.0).into();
         let up_direction = cgmath::Vector3::unit_y();
         
-        let (view_mat, project_mat, _) = transforms::create_view_projection(camera_position, look_direction, up_direction, 
+        let (view_mat, project_mat, _) = 
+        transforms::create_view_projection(camera_position, look_direction, up_direction, 
             init.config.width as f32 / init.config.height as f32, IS_PERSPECTIVE);
         
         // create vertex uniform buffer
         // model_mat and view_projection_mat will be stored in vertex_uniform_buffer inside the update function
         let vertex_uniform_buffer = init.device.create_buffer(&wgpu::BufferDescriptor{
             label: Some("Vertex Uniform Buffer"),
-            size: 192,
+            size: 192, //셰이더 안 유니폼 구조체의 크기가 192바이트임
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -132,7 +133,7 @@ impl State {
         // create fragment uniform buffer. here we set eye_position = camera_position and light_position = eye_position
         let fragment_uniform_buffer = init.device.create_buffer(&wgpu::BufferDescriptor{
             label: Some("Fragment Uniform Buffer"),
-            size: 32,
+            size: 32, //셰이더 안 유니폼 구제체의 크기
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
